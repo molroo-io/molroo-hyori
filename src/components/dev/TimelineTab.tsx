@@ -13,9 +13,9 @@ export function TimelineTab({ history }: TimelineTabProps) {
     return <p className="py-10 text-center text-sm text-muted-foreground">No turns yet. Start a conversation to build the timeline.</p>
   }
 
-  const vValues = history.map(t => t.response.new_emotion.V)
-  const aValues = history.map(t => t.response.new_emotion.A)
-  const dValues = history.map(t => t.response.new_emotion.D)
+  const vValues = history.map(t => t.result.response.emotion.vad.V)
+  const aValues = history.map(t => t.result.response.emotion.vad.A)
+  const dValues = history.map(t => t.result.response.emotion.vad.D)
 
   return (
     <div className="space-y-3">
@@ -41,28 +41,28 @@ export function TimelineTab({ history }: TimelineTabProps) {
 function TurnCard({ entry, expanded, onToggle }: {
   entry: TurnEntry; expanded: boolean; onToggle: () => void
 }) {
-  const { response: res } = entry
-  const delta = res.emotion_delta
+  const { result } = entry
+  const emotion = result.response.emotion
 
   return (
     <div className="cursor-pointer rounded-lg border border-border bg-card p-3 transition-colors hover:border-muted-foreground/30"
       onClick={onToggle}>
       <div className="mb-1 flex items-center gap-2">
         <span className="text-[11px] font-semibold text-primary">#{entry.id}</span>
-        <Badge variant="secondary" className="text-[11px]">{res.discrete_emotion.primary}</Badge>
-        <span className="text-[11px] text-muted-foreground">{res.discrete_emotion.intensity}</span>
+        <Badge variant="secondary" className="text-[11px]">{emotion.discrete.primary}</Badge>
+        <span className="text-[11px] text-muted-foreground">{emotion.discrete.intensity.toFixed(2)}</span>
       </div>
       <p className="mb-1 truncate text-xs text-muted-foreground">{entry.userMessage}</p>
       <div className="flex gap-2">
-        <VadDelta label="V" value={delta.V} />
-        <VadDelta label="A" value={delta.A} />
-        <VadDelta label="D" value={delta.D} />
+        <VadValue label="V" value={emotion.vad.V} />
+        <VadValue label="A" value={emotion.vad.A} />
+        <VadValue label="D" value={emotion.vad.D} />
       </div>
       {expanded && (
         <div className="mt-2 border-t border-border pt-2">
-          <p className="mb-2 text-xs leading-relaxed text-foreground">{res.reply}</p>
+          <p className="mb-2 text-xs leading-relaxed text-foreground">{result.text}</p>
           <pre className="max-h-[150px] overflow-auto rounded-md bg-[#0d0d0d] p-2 font-mono text-[10px] text-lime-400">
-            {JSON.stringify({ appraisal: res.appraisal, prediction_error: res.prediction_error }, null, 2)}
+            {JSON.stringify(result.response.emotion, null, 2)}
           </pre>
         </div>
       )}
@@ -70,7 +70,7 @@ function TurnCard({ entry, expanded, onToggle }: {
   )
 }
 
-function VadDelta({ label, value }: { label: string; value: number }) {
+function VadValue({ label, value }: { label: string; value: number }) {
   const color = value > 0 ? 'text-green-400' : value < 0 ? 'text-red-400' : 'text-muted-foreground'
   const sign = value >= 0 ? '+' : ''
   return (

@@ -11,7 +11,7 @@ import { applyEmotionToLive2D } from './lib/live2d/emotion-controller'
 import { getProvider } from './lib/llm/providers'
 import type { Live2DController, ActiveMotion } from './hooks/useLive2D'
 import type { LlmConfig } from './hooks/useSession'
-import type { TurnResultResponse } from './lib/api/types'
+import type { AgentResponse } from './lib/api/types'
 import './App.css'
 
 function isLlmReady(config: LlmConfig): boolean {
@@ -61,19 +61,15 @@ export default function App() {
   } = useSession()
 
   // Auto-create or resume session from URL params
-  // e.g. ?provider=openai&apiKey=sk-xxx&model=gpt-4o-mini
-  // or   ?baseUrl=https://api.example.com/v1&apiKey=xxx&model=my-model
-  // or   ?sessionId=abc-123&provider=openai&apiKey=sk-xxx  (resume existing)
   useEffect(() => {
     if (autoSessionRef.current) return
     const params = new URLSearchParams(window.location.search)
 
-    // LLM config from params
     const provider = params.get('provider')
       ?? (params.get('baseUrl') ? 'openai-compatible' : null)
 
-    const sessionId = params.get('sessionId')
-    if (!provider && !sessionId) return
+    const personaId = params.get('personaId') ?? params.get('sessionId')
+    if (!provider && !personaId) return
 
     autoSessionRef.current = true
 
@@ -86,8 +82,8 @@ export default function App() {
 
     if (config) setLlmConfig(config)
 
-    if (sessionId) {
-      resumeSession(sessionId)
+    if (personaId) {
+      resumeSession(personaId)
     } else if (config) {
       createSession()
         .then(() => console.log('[AutoSession] created'))
@@ -101,23 +97,20 @@ export default function App() {
     window.history.replaceState({}, '', clean ? `?${clean}` : window.location.pathname)
   }, [setLlmConfig, createSession, resumeSession])
 
-  // Update URL with sessionId when session becomes active
+  // Update URL with personaId when session becomes active
   useEffect(() => {
-    if (session.status !== 'active' || !session.sessionId) return
+    if (session.status !== 'active' || !session.personaId) return
     const params = new URLSearchParams(window.location.search)
-    if (params.get('sessionId') === session.sessionId) return
-    params.set('sessionId', session.sessionId)
-    // Remove creation-only params
+    if (params.get('personaId') === session.personaId) return
+    params.set('personaId', session.personaId)
+    params.delete('sessionId') // Remove legacy param
     params.delete('apiKey')
     params.delete('key')
     window.history.replaceState({}, '', `?${params.toString()}`)
-  }, [session.status, session.sessionId])
+  }, [session.status, session.personaId])
 
   const llmReady = isLlmReady(llmConfig)
 
-  // Auto-open settings panel when user needs to take action:
-  // 1. Session idle + guide already dismissed → user needs to set up & create session
-  // 2. Session active + LLM not configured → user needs to set up LLM to chat
   useEffect(() => {
     if (session.status === 'idle' && !guideVisible) {
       setDevOpen(true)
@@ -126,12 +119,12 @@ export default function App() {
     }
   }, [session.status, llmConfig, guideVisible])
 
-  function handleTurnResponse(res: TurnResultResponse) {
+  function handleTurnResponse(response: AgentResponse) {
     if (!controller) return
-    applyEmotionToLive2D(controller, res)
+    applyEmotionToLive2D(controller, response)
 
     // Show reaction bubble on emotion change
-    const newEmotion = res.discrete_emotion.primary
+    const newEmotion = response.emotion.discrete.primary
     if (prevEmotionRef.current && prevEmotionRef.current !== newEmotion) {
       setEmotionReaction(emotionToSymbol(newEmotion))
     }

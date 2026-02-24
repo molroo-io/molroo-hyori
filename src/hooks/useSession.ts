@@ -1,31 +1,34 @@
 import { useState, useCallback, useRef, useMemo } from 'react'
-import { createMolrooClient, DEFAULT_API_URL, DEFAULT_API_KEY } from '../lib/api/client'
-import { generateWithAppraisal } from '../lib/llm/chat'
-import type { LlmConfig } from '../lib/llm/chat'
-import type { TurnResultResponse, StateResponse } from '../lib/api/types'
-import { HYORI_PERSONA } from '../characters/hyori/persona-data'
+import { MolrooPersona } from '@molroo-ai/sdk'
+import type { PersonaChatResult, PersonaState, AgentResponse } from '@molroo-ai/sdk'
+import { createBrowserAdapter } from '../lib/llm/adapter'
+import type { LlmConfig } from '../lib/llm/adapter'
+import { getProvider } from '../lib/llm/providers'
+import { HYORI_CONFIG, HYORI_CONSUMER_SUFFIX } from '../characters/hyori/persona'
 
-export type { LlmConfig } from '../lib/llm/chat'
+export type { LlmConfig } from '../lib/llm/adapter'
 
 export interface SessionState {
   status: 'idle' | 'creating' | 'active' | 'error'
-  sessionId: string | null
+  personaId: string | null
   error: string | null
 }
 
 export interface TurnEntry {
   id: number
   userMessage: string
-  response: TurnResultResponse
-  llmResponse: string | null
+  result: PersonaChatResult
   timestamp: number
 }
 
 const INITIAL_SESSION: SessionState = {
   status: 'idle',
-  sessionId: null,
+  personaId: null,
   error: null,
 }
+
+const DEFAULT_API_URL = import.meta.env.VITE_MOLROO_API_URL ?? 'http://localhost:8787'
+const DEFAULT_API_KEY = import.meta.env.VITE_MOLROO_API_KEY ?? 'mk_live_fb3db843e38c15ec530b0b95337608b7'
 
 const LS_KEY = 'molroo-llm-config'
 
@@ -59,50 +62,49 @@ export function useSession() {
   const [molrooApiKey, setMolrooApiKey] = useState(DEFAULT_API_KEY)
   const [llmConfig, setLlmConfigState] = useState<LlmConfig>(loadLlmConfig)
   const [turnHistory, setTurnHistory] = useState<TurnEntry[]>([])
-  const [currentState, setCurrentState] = useState<StateResponse | null>(null)
+  const [currentState, setCurrentState] = useState<PersonaState | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
   const turnIdRef = useRef(0)
-  const systemPromptRef = useRef<string>('')
+  const personaRef = useRef<MolrooPersona | null>(null)
 
   const setLlmConfig = useCallback((config: LlmConfig) => {
     setLlmConfigState(config)
     saveLlmConfig(config)
   }, [])
 
-  const client = useMemo(
-    () => createMolrooClient(DEFAULT_API_URL, molrooApiKey),
-    [molrooApiKey],
-  )
+  const apiConfig = useMemo(() => ({
+    baseUrl: DEFAULT_API_URL,
+    apiKey: molrooApiKey,
+  }), [molrooApiKey])
 
   /**
-   * Create a session with the hardcoded Hyori persona.
-   * Posts directly to POST /v1/persona — no LLM needed for persona generation.
-   *
-   * @param llmConfigOverride — pass explicitly when calling from useEffect
-   *   (React state may not yet reflect setLlmConfig from the same tick)
+   * Create a new persona session with the Hyori config.
    */
   const createSession = useCallback(async () => {
-    setSession({ status: 'creating', sessionId: null, error: null })
+    setSession({ status: 'creating', personaId: null, error: null })
     try {
-      console.log('[Session] Creating session with hardcoded persona...')
-      const res = await client.createSession(HYORI_PERSONA)
-      console.log('[Session] created:', res.session_id)
+      const llm = createBrowserAdapter(llmConfig)
+      // Separate instance for engine appraisal (split mode requires different refs)
+      const engineLlm = createBrowserAdapter(llmConfig)
 
-      if (!res.session_id) {
-        console.error('[Session] No session_id in response:', JSON.stringify(res))
-        setSession(prev => ({ ...prev, status: 'error', error: 'No session_id in response' }))
-        return
-      }
+      console.log('[Session] Creating persona with SDK...')
+      const persona = await MolrooPersona.create(
+        {
+          ...apiConfig,
+          llm: llm ?? undefined,
+          engineLlm: engineLlm ?? undefined,
+        },
+        HYORI_CONFIG,
+      )
+      console.log('[Session] created:', persona.id)
 
-      setSession({ status: 'active', sessionId: res.session_id, error: null })
+      personaRef.current = persona
+      setSession({ status: 'active', personaId: persona.id, error: null })
       setTurnHistory([])
-      setCurrentState(null)
       turnIdRef.current = 0
 
-      systemPromptRef.current = res.prompt_data?.system?.formatted?.system_prompt ?? ''
-
       try {
-        const state = await client.getState(res.session_id)
+        const state = await persona.getState()
         setCurrentState(state)
       } catch (stateErr) {
         console.warn('[Session] getState failed (non-fatal):', stateErr)
@@ -112,85 +114,87 @@ export function useSession() {
       const msg = err instanceof Error ? err.message : 'Failed to create session'
       setSession(prev => ({ ...prev, status: 'error', error: msg }))
     }
-  }, [client])
+  }, [apiConfig, llmConfig])
 
-  // Cached prompt_data from last appraisal response (context + instruction update each turn)
-  const promptDataRef = useRef<{ ctx: string; inst: string }>({ ctx: '', inst: '' })
-
+  /**
+   * Send a message via SDK chat() — handles LLM generation + emotion processing.
+   */
   const sendMessage = useCallback(async (message: string): Promise<{
-    turnResponse: TurnResultResponse
+    result: PersonaChatResult
     displayText: string
   } | { error: string } | null> => {
-    if (session.status !== 'active' || !session.sessionId || isProcessing) return null
+    if (session.status !== 'active' || !personaRef.current || isProcessing) return null
     setIsProcessing(true)
     try {
-      let finalRes: TurnResultResponse | null = null
-      let llmText: string | null = null
+      const persona = personaRef.current
+
+      // Rebuild LLM adapter in case config changed since session creation
+      const llm = createBrowserAdapter(llmConfig)
+      if (llm) {
+        const engineLlm = createBrowserAdapter(llmConfig)
+        // Re-create persona instance with updated LLM (SDK constructor is cheap)
+        const newPersona = new MolrooPersona({
+          ...apiConfig,
+          personaId: persona.id,
+          llm,
+          engineLlm: engineLlm ?? undefined,
+        })
+        personaRef.current = newPersona
+      }
+
+      const currentPersona = personaRef.current
+
+      const history = turnHistory.flatMap(t => [
+        { role: 'user' as const, content: t.userMessage },
+        { role: 'assistant' as const, content: t.result.text },
+      ])
+
+      let chatResult: PersonaChatResult
 
       if (llmConfig.provider !== 'none' && llmConfig.apiKey) {
-        const history = turnHistory.flatMap(t => [
-          { role: 'user' as const, content: t.userMessage },
-          { role: 'assistant' as const, content: t.llmResponse ?? t.response.reply },
-        ])
-
-        // Single LLM call → text + appraisal via tool calling
-        const { text: chatResponse, appraisal } = await generateWithAppraisal(
-          llmConfig, systemPromptRef.current,
-          promptDataRef.current.ctx, promptDataRef.current.inst,
-          message, history,
-        )
-
-        llmText = chatResponse
-        console.log('[Appraisal] Evaluated:', appraisal)
-
-        // Send appraisal to molroo API → get emotion + updated prompt_data
-        finalRes = await client.processAppraisal({
-          session_id: session.sessionId,
-          appraisal,
-          context: message,
+        chatResult = await currentPersona.chat(message, {
+          history,
+          consumerSuffix: HYORI_CONSUMER_SUFFIX,
         })
-        console.log('[Appraisal] Result:', finalRes.discrete_emotion)
-
-        // Cache updated prompt_data for next turn
-        promptDataRef.current = {
-          ctx: finalRes.prompt_data?.context?.formatted?.context_block ?? '',
-          inst: finalRes.prompt_data?.instruction?.formatted?.instruction_block ?? '',
-        }
       } else {
-        // No LLM — just send appraisal with defaults
-        finalRes = await client.processAppraisal({
-          session_id: session.sessionId,
+        // No LLM — perceive-only with default appraisal
+        const response = await currentPersona.perceive(message, {
           appraisal: {
-            goal_relevance: 0.5, goal_congruence: 0.5, expectedness: 0.5,
-            controllability: 0.5, agency: 0.5, norm_compatibility: 0.5,
+            goal_relevance: 0, goal_congruence: 0, expectedness: 0.5,
+            controllability: 0.5, agency: 0, norm_compatibility: 0,
+            internal_standards: 0, adjustment_potential: 0.5, urgency: 0.5,
           },
-          context: message,
         })
+        chatResult = {
+          text: response.text ?? message,
+          response,
+        }
       }
 
       const entry: TurnEntry = {
         id: ++turnIdRef.current,
         userMessage: message,
-        response: finalRes,
-        llmResponse: llmText,
+        result: chatResult,
         timestamp: Date.now(),
       }
       setTurnHistory(prev => [...prev, entry])
 
-      setCurrentState(prev => prev ? {
-        ...prev,
-        emotion: finalRes.new_emotion,
-        emotion_intensity: finalRes.emotion_intensity,
-        discrete_emotion: finalRes.discrete_emotion,
-        body_budget: finalRes.body_budget,
-        soul_stage: finalRes.soul_stage,
-        velocity: finalRes.velocity,
-        blend_ratio: finalRes.blend_ratio,
-      } : null)
+      // Update state from response
+      if (chatResult.state) {
+        setCurrentState(chatResult.state)
+      } else {
+        // Derive minimal state from response
+        setCurrentState(prev => prev ? {
+          ...prev,
+          emotion: chatResult.response.emotion,
+        } : {
+          emotion: chatResult.response.emotion,
+        })
+      }
 
       return {
-        turnResponse: finalRes,
-        displayText: llmText ?? finalRes.reply,
+        result: chatResult,
+        displayText: chatResult.text,
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Failed to process turn'
@@ -199,28 +203,40 @@ export function useSession() {
     } finally {
       setIsProcessing(false)
     }
-  }, [session.status, session.sessionId, isProcessing, llmConfig, client])
+  }, [session.status, isProcessing, llmConfig, apiConfig, turnHistory])
 
-  const resumeSession = useCallback(async (sessionId: string) => {
-    setSession({ status: 'creating', sessionId: null, error: null })
+  const resumeSession = useCallback(async (personaId: string) => {
+    setSession({ status: 'creating', personaId: null, error: null })
     try {
-      const state = await client.getState(sessionId)
-      setSession({ status: 'active', sessionId, error: null })
+      const llm = createBrowserAdapter(llmConfig)
+      const engineLlm = createBrowserAdapter(llmConfig)
+      const persona = await MolrooPersona.connect(
+        {
+          ...apiConfig,
+          llm: llm ?? undefined,
+          engineLlm: engineLlm ?? undefined,
+        },
+        personaId,
+      )
+
+      personaRef.current = persona
+      setSession({ status: 'active', personaId, error: null })
       setTurnHistory([])
-      setCurrentState(state)
       turnIdRef.current = 0
-      systemPromptRef.current = state.prompt_data?.system?.formatted?.system_prompt ?? ''
+
+      const state = await persona.getState()
+      setCurrentState(state)
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Session not found'
       setSession(prev => ({ ...prev, status: 'error', error: msg }))
     }
-  }, [client])
+  }, [apiConfig, llmConfig])
 
   const reset = useCallback(() => {
+    personaRef.current = null
     setSession(INITIAL_SESSION)
     setTurnHistory([])
     setCurrentState(null)
-    systemPromptRef.current = ''
     turnIdRef.current = 0
   }, [])
 

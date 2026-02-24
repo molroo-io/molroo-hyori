@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import type { SessionState } from '../hooks/useSession'
-import type { TurnResultResponse } from '../lib/api/types'
+import type { AgentResponse, PersonaChatResult } from '../lib/api/types'
 import './ChatPanel.css'
 
 export interface ChatMessage {
@@ -14,10 +14,10 @@ interface ChatPanelProps {
   isProcessing: boolean
   llmReady: boolean
   onSend: (message: string) => Promise<{
-    turnResponse: TurnResultResponse
+    result: PersonaChatResult
     displayText: string
-  } | null>
-  onTurnResponse: (res: TurnResultResponse) => void
+  } | { error: string } | null>
+  onTurnResponse: (response: AgentResponse) => void
   emotionReaction?: string | null
   onEmotionReactionDone?: () => void
 }
@@ -92,7 +92,7 @@ export function ChatPanel({
     } else if (result) {
       setMessages(prev => [...prev, { role: 'assistant', text: result.displayText }])
       showFloating(result.displayText)
-      onTurnResponse(result.turnResponse)
+      onTurnResponse(result.result.response)
     } else {
       setMessages(prev => [...prev, {
         role: 'assistant',

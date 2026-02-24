@@ -16,6 +16,8 @@ interface SetupTabProps {
   onCreateSession: () => void
 }
 
+// Note: session.personaId replaces session.personaId
+
 export function SetupTab({
   session, isProcessing,
   molrooApiKey, onMolrooApiKeyChange,
@@ -101,10 +103,10 @@ export function SetupTab({
           {isCreating ? 'Creating...' : 'Create Session'}
         </Button>
       )}
-      {isActive && session.sessionId && (
+      {isActive && session.personaId && (
         <div className="rounded-lg border border-border bg-card p-3">
-          <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Session ID</span>
-          <code className="mt-1 block break-all text-xs text-primary">{session.sessionId}</code>
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Persona ID</span>
+          <code className="mt-1 block break-all text-xs text-primary">{session.personaId}</code>
         </div>
       )}
       {session.error && (

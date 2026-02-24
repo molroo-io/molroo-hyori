@@ -1,5 +1,5 @@
 import type { SessionState, TurnEntry, LlmConfig } from '../../hooks/useSession'
-import type { StateResponse } from '../../lib/api/types'
+import type { PersonaState } from '../../lib/api/types'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs'
 import { Button } from '../ui/button'
 import { Badge } from '../ui/badge'
@@ -14,7 +14,7 @@ interface DevPanelProps {
   onMolrooApiKeyChange: (key: string) => void
   llmConfig: LlmConfig
   onLlmConfigChange: (config: LlmConfig) => void
-  currentState: StateResponse | null
+  currentState: PersonaState | null
   turnHistory: TurnEntry[]
   isProcessing: boolean
   characterName: string

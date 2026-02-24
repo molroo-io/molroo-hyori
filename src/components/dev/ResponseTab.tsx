@@ -16,7 +16,8 @@ export function ResponseTab({ turn }: ResponseTabProps) {
     return <p className="py-10 text-center text-sm text-muted-foreground">No turns yet. Send a message to see the API response.</p>
   }
 
-  const { response: res } = turn
+  const { result } = turn
+  const res = result.response
 
   function handleCopy() {
     navigator.clipboard.writeText(JSON.stringify(res, null, 2))
@@ -25,13 +26,11 @@ export function ResponseTab({ turn }: ResponseTabProps) {
   }
 
   const sections = [
-    { key: 'appraisal', label: 'Appraisal', data: res.appraisal },
-    { key: 'prediction', label: 'Prediction Error', data: res.prediction_error },
-    { key: 'delta', label: 'Emotion Delta', data: res.emotion_delta },
-    { key: 'emotion', label: 'New Emotion', data: res.new_emotion },
-    { key: 'discrete', label: 'Discrete Emotion', data: res.discrete_emotion },
-    { key: 'regulation', label: 'Regulation', data: res.regulation },
-    { key: 'catastrophe', label: 'Catastrophe', data: res.catastrophe },
+    { key: 'emotion', label: 'Emotion', data: res.emotion },
+    ...(res.stageTransition ? [{ key: 'stage', label: 'Stage Transition', data: res.stageTransition }] : []),
+    ...(res.socialUpdates?.length ? [{ key: 'social', label: 'Social Updates', data: res.socialUpdates }] : []),
+    ...(res.maskExposure ? [{ key: 'mask', label: 'Mask Exposure', data: res.maskExposure }] : []),
+    ...(res.goalChanges ? [{ key: 'goals', label: 'Goal Changes', data: res.goalChanges }] : []),
     { key: 'full', label: 'Full Response', data: res },
   ]
 
@@ -51,10 +50,10 @@ export function ResponseTab({ turn }: ResponseTabProps) {
 
       <div className="space-y-1 rounded-lg border border-border bg-card p-3">
         <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Response</span>
-        <p className="text-sm text-foreground">{res.reply}</p>
+        <p className="text-sm text-foreground">{result.text}</p>
       </div>
 
-      <Accordion type="multiple" defaultValue={['appraisal', 'delta', 'emotion']}>
+      <Accordion type="multiple" defaultValue={['emotion']}>
         {sections.map(s => (
           <AccordionItem key={s.key} value={s.key} className="border-border">
             <AccordionTrigger className="py-2 text-xs hover:no-underline">{s.label}</AccordionTrigger>

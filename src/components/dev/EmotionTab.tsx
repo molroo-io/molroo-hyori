@@ -1,9 +1,8 @@
-import type { StateResponse } from '../../lib/api/types'
+import type { PersonaState } from '../../lib/api/types'
 import { Badge } from '../ui/badge'
-import { cn } from '../../lib/utils'
 
 interface EmotionTabProps {
-  state: StateResponse | null
+  state: PersonaState | null
 }
 
 export function EmotionTab({ state }: EmotionTabProps) {
@@ -11,50 +10,56 @@ export function EmotionTab({ state }: EmotionTabProps) {
     return <p className="py-10 text-center text-sm text-muted-foreground">No session active. Create one in Setup tab.</p>
   }
 
-  const { emotion, discrete_emotion, body_budget, soul_stage, blend_ratio, velocity } = state
+  const { emotion } = state
 
   return (
     <div className="space-y-5">
       <Section title="VAD State">
-        <VadBar label="V" value={emotion.V} />
-        <VadBar label="A" value={emotion.A} />
-        <VadBar label="D" value={emotion.D} />
+        <VadBar label="V" value={emotion.vad.V} />
+        <VadBar label="A" value={emotion.vad.A} />
+        <VadBar label="D" value={emotion.vad.D} />
       </Section>
 
-      <Section title="Velocity">
-        <VadBar label="V" value={velocity.V} />
-        <VadBar label="A" value={velocity.A} />
-        <VadBar label="D" value={velocity.D} />
-      </Section>
+      {state.mood && (
+        <Section title="Mood">
+          <VadBar label="V" value={state.mood.vad.V} />
+          <VadBar label="A" value={state.mood.vad.A} />
+          <VadBar label="D" value={state.mood.vad.D} />
+        </Section>
+      )}
 
-      <Section title="Discrete Emotion">
-        <div className="flex flex-wrap gap-2">
-          <Badge variant="default">{discrete_emotion.primary}</Badge>
-          {discrete_emotion.secondary && <Badge variant="secondary">{discrete_emotion.secondary}</Badge>}
-          <Badge variant="outline" className="text-yellow-400 border-yellow-400/30">
-            {discrete_emotion.intensity}
-          </Badge>
-        </div>
-      </Section>
+      {emotion.discrete && (
+        <Section title="Discrete Emotion">
+          <div className="flex flex-wrap gap-2">
+            <Badge variant="default">{emotion.discrete.primary}</Badge>
+            {emotion.discrete.secondary && <Badge variant="secondary">{emotion.discrete.secondary}</Badge>}
+            <Badge variant="outline" className="text-yellow-400 border-yellow-400/30">
+              {emotion.discrete.intensity.toFixed(2)}
+            </Badge>
+          </div>
+        </Section>
+      )}
 
       <Section title="Status">
         <div className="space-y-2">
-          <StatusRow label="Body Budget">
-            <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
-              <div className={cn("h-full rounded-full transition-all duration-300",
-                body_budget > 0.5 ? 'bg-green-400' : body_budget > 0.25 ? 'bg-yellow-400' : 'bg-red-400')}
-                style={{ width: `${body_budget * 100}%` }} />
-            </div>
-            <span className="w-12 text-right font-mono text-xs text-muted-foreground">{(body_budget * 100).toFixed(0)}%</span>
-          </StatusRow>
-          <StatusRow label="Soul Stage">
-            <span className="text-xs text-muted-foreground">{soul_stage.name} (#{soul_stage.id})</span>
-          </StatusRow>
-          <StatusRow label="Blend">
-            <span className="font-mono text-xs text-muted-foreground">
-              R:{blend_ratio.rational.toFixed(2)} / I:{blend_ratio.irrational.toFixed(2)}
-            </span>
-          </StatusRow>
+          {state.somatic && state.somatic.length > 0 && (
+            <StatusRow label="Somatic">
+              <span className="text-xs text-muted-foreground">{state.somatic.join(', ')}</span>
+            </StatusRow>
+          )}
+          {state.narrative && (
+            <>
+              <StatusRow label="Tone">
+                <span className="font-mono text-xs text-muted-foreground">{state.narrative.tone.toFixed(2)}</span>
+              </StatusRow>
+              <StatusRow label="Agency">
+                <span className="font-mono text-xs text-muted-foreground">{state.narrative.agency.toFixed(2)}</span>
+              </StatusRow>
+              <StatusRow label="Coherence">
+                <span className="font-mono text-xs text-muted-foreground">{state.narrative.coherence.toFixed(2)}</span>
+              </StatusRow>
+            </>
+          )}
         </div>
       </Section>
     </div>

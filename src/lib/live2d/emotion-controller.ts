@@ -1,13 +1,13 @@
 /**
- * Emotion Controller — Maps molroo API emotion data to Live2D expression commands.
+ * Emotion Controller — Maps molroo SDK emotion data to Live2D expression commands.
  *
  * Three-layer approach:
  * 1. discrete_emotion.primary → expression name (most reliable)
  * 2. VAD coordinates → expression name (fallback)
- * 3. emotion_intensity + body_budget → weight modulation
+ * 3. emotion intensity + body_budget → weight modulation
  */
 
-import type { TurnResultResponse, DiscreteEmotion, VAD } from '../api/types'
+import type { AgentResponse } from '@molroo-ai/sdk'
 import type { Live2DController } from '../../hooks/useLive2D'
 import { vadToExpression } from './vad-expression'
 
@@ -33,14 +33,11 @@ const DISCRETE_TO_EXPRESSION: Record<string, string> = {
   numbness: 'sleepy',
 }
 
-/** Map discrete_emotion intensity string to a weight range */
-function intensityToWeight(intensity: string): number {
-  switch (intensity) {
-    case 'high': return 0.85
-    case 'medium': return 0.6
-    case 'low': return 0.35
-    default: return 0.5
-  }
+/** Map numeric intensity to a weight range */
+function intensityToWeight(intensity: number): number {
+  if (intensity > 0.7) return 0.85
+  if (intensity > 0.4) return 0.6
+  return 0.35
 }
 
 /** Modulate expression weight by body_budget (fatigue reduces expression vividness) */
@@ -73,7 +70,7 @@ export interface EmotionCommand {
 }
 
 /**
- * Resolve the best expression + weight from a turn response.
+ * Resolve the best expression + weight from an AgentResponse.
  *
  * Priority:
  * 1. discrete_emotion.primary → direct name mapping + intensity weight
@@ -81,19 +78,18 @@ export interface EmotionCommand {
  * 3. null if emotion is too neutral
  */
 export function resolveExpression(
-  discreteEmotion: DiscreteEmotion,
-  vad: VAD,
-  emotionIntensity: number,
+  discrete: { primary: string; intensity: number },
+  vad: { V: number; A: number; D: number },
   bodyBudget: number,
 ): EmotionCommand | null {
   let expressionName: string | null = null
   let weight: number
 
   // 1. Discrete emotion mapping (primary)
-  const mapped = DISCRETE_TO_EXPRESSION[discreteEmotion.primary]
+  const mapped = DISCRETE_TO_EXPRESSION[discrete.primary]
   if (mapped) {
     expressionName = mapped
-    weight = intensityToWeight(discreteEmotion.intensity)
+    weight = intensityToWeight(discrete.intensity)
   } else {
     // 2. VAD fallback
     const vadResult = vadToExpression(vad)
@@ -106,9 +102,8 @@ export function resolveExpression(
     }
   }
 
-  // Blend emotion_intensity into weight (API intensity reflects distance from baseline)
-  // emotion_intensity is [0, ~1], use it to scale the base weight
-  weight = weight * (0.5 + emotionIntensity * 0.5)
+  // Blend intensity into weight (intensity reflects distance from baseline)
+  weight = weight * (0.5 + discrete.intensity * 0.5)
 
   // Modulate by body_budget
   weight = modulateByBudget(weight, bodyBudget)
@@ -127,19 +122,19 @@ export function resolveExpression(
 let prevEmotion: string | null = null
 
 /**
- * Apply a turn response to a Live2D controller.
- * Call this after each API turn to update the character's expression + trigger motion.
+ * Apply an AgentResponse to a Live2D controller.
+ * Call this after each SDK chat() to update the character's expression + trigger motion.
  */
 export function applyEmotionToLive2D(
   controller: Live2DController,
-  turnResponse: TurnResultResponse,
+  response: AgentResponse,
 ): void {
-  const emotion = turnResponse.discrete_emotion.primary
+  const { emotion } = response
+  const primary = emotion.discrete.primary
   const cmd = resolveExpression(
-    turnResponse.discrete_emotion,
-    turnResponse.new_emotion,
-    turnResponse.emotion_intensity,
-    turnResponse.body_budget,
+    emotion.discrete,
+    emotion.vad,
+    0.7, // Default body budget — PersonaState doesn't directly expose it
   )
 
   if (cmd) {
@@ -149,11 +144,11 @@ export function applyEmotionToLive2D(
   }
 
   // Play reaction motion on emotion change
-  if (prevEmotion && prevEmotion !== emotion) {
-    const motion = EMOTION_TO_MOTION[emotion]
+  if (prevEmotion && prevEmotion !== primary) {
+    const motion = EMOTION_TO_MOTION[primary]
     if (motion) {
       controller.playMotion(motion.group, motion.index)
     }
   }
-  prevEmotion = emotion
+  prevEmotion = primary
 }
