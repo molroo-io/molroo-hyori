@@ -3,31 +3,15 @@ import { describe, expect, it, vi } from 'vitest'
 import { attachMouseGaze, resolveGaze } from '../gaze'
 
 describe('resolveGaze', () => {
-  it('returns camera gaze when both camera and mouse are available', () => {
-    const camera = { eyeX: 0.5, eyeY: -0.3 }
-    const mouse = { x: -0.2, y: 0.8 }
-    const result = resolveGaze(camera, mouse)
-
-    expect(result).toEqual({ x: 0.5, y: -0.3 })
-  })
-
-  it('returns mouse gaze with inverted Y when camera is null', () => {
+  it('returns mouse gaze with inverted Y', () => {
     const mouse = { x: 0.7, y: 0.4 }
-    const result = resolveGaze(null, mouse)
+    const result = resolveGaze(mouse)
 
     expect(result).toEqual({ x: 0.7, y: -0.4 })
   })
 
-  it('returns null when both sources are null (fall through to saccade)', () => {
-    expect(resolveGaze(null, null)).toBeNull()
-  })
-
-  it('ignores mouse when camera gaze is available', () => {
-    const camera = { eyeX: 0, eyeY: 0 }
-    const mouse = { x: 1, y: 1 }
-    const result = resolveGaze(camera, mouse)
-
-    expect(result).toEqual({ x: 0, y: 0 })
+  it('returns null when mouse is null (fall through to saccade)', () => {
+    expect(resolveGaze(null)).toBeNull()
   })
 
 })

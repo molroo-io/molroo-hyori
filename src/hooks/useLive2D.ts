@@ -3,8 +3,6 @@ import type { InternalModel } from 'pixi-live2d-display/cubism4'
 import { Live2DFactory, Live2DModel } from 'pixi-live2d-display/cubism4'
 
 import type { CharacterPackage } from '../characters/types'
-import type { CameraTrackingStatus } from '../lib/face-tracking/jeeliz-adapter'
-import { createJeelizAdapter } from '../lib/face-tracking/jeeliz-adapter'
 import type { Exp3Expression } from '../lib/live2d/exp3-engine'
 import { applyExp3Expression } from '../lib/live2d/exp3-engine'
 import { attachDragPhysics } from '../lib/live2d/drag-physics'
@@ -33,8 +31,6 @@ export interface Live2DController {
   lookAt(x: number, y: number): void
   setMouthOpen(value: number): void
   setAutoSaccade(enabled: boolean): void
-  setCameraTracking(enabled: boolean): void
-  cameraTrackingStatus: CameraTrackingStatus
   isLoaded: boolean
   motionGroups: Record<string, number>
   activeMotion: ActiveMotion | null
@@ -43,14 +39,10 @@ export interface Live2DController {
 export function useLive2D(
   canvasRef: React.RefObject<HTMLCanvasElement | null>,
   character: CharacterPackage,
-  jeelizCanvasRef?: React.RefObject<HTMLCanvasElement | null>,
 ): Live2DController {
   const [isLoaded, setIsLoaded] = useState(false)
   const [motionGroups, setMotionGroups] = useState<Record<string, number>>({})
   const [activeMotion, setActiveMotion] = useState<ActiveMotion | null>(null)
-  const [cameraTrackingStatus, setCameraTrackingStatus] = useState<CameraTrackingStatus>('off')
-
-  const jeelizRef = useRef(createJeelizAdapter())
 
   const controllerRef = useRef<{
     coreModel: any
@@ -60,7 +52,6 @@ export function useLive2D(
     currentExpressionWeight: number
     targetExpressionWeight: number
     autoSaccadeEnabled: boolean
-    cameraTrackingEnabled: boolean
   } | null>(null)
 
   useEffect(() => {
@@ -144,7 +135,6 @@ export function useLive2D(
         currentExpressionWeight: 0,
         targetExpressionWeight: 0,
         autoSaccadeEnabled: true,
-        cameraTrackingEnabled: false,
       }
 
       // --- Motion patches ---
@@ -234,10 +224,7 @@ export function useLive2D(
         }
 
         // Apply gaze AFTER expression so both persist
-        const cameraGaze = ctrl?.cameraTrackingEnabled
-          ? jeelizRef.current.getGaze()
-          : null
-        const gazeResult = resolveGaze(cameraGaze, mouseGaze)
+        const gazeResult = resolveGaze(mouseGaze)
         if (gazeResult) {
           coreModel.setParameterValueById('ParamEyeBallX', gazeResult.x)
           coreModel.setParameterValueById('ParamEyeBallY', gazeResult.y)
@@ -286,8 +273,6 @@ export function useLive2D(
     return () => {
       disposed = true
       cleanupResize?.()
-      jeelizRef.current.stop()
-      setCameraTrackingStatus('off')
       controllerRef.current = null
       setIsLoaded(false)
       if (live2DModel) {
@@ -386,34 +371,6 @@ export function useLive2D(
       }
     },
 
-    setCameraTracking(enabled: boolean) {
-      const ctrl = controllerRef.current
-      if (!ctrl) return
-
-      if (enabled) {
-        const canvas = jeelizCanvasRef?.current
-        if (!canvas) {
-          setCameraTrackingStatus('error')
-          return
-        }
-        ctrl.cameraTrackingEnabled = true
-        setCameraTrackingStatus('requesting')
-        jeelizRef.current.start(canvas).then(
-          () => setCameraTrackingStatus('active'),
-          (err) => {
-            console.error('[CameraTracking] Failed to start:', err)
-            ctrl.cameraTrackingEnabled = false
-            setCameraTrackingStatus('error')
-          },
-        )
-      } else {
-        ctrl.cameraTrackingEnabled = false
-        jeelizRef.current.stop()
-        setCameraTrackingStatus('off')
-      }
-    },
-
-    cameraTrackingStatus,
     isLoaded,
     motionGroups,
     activeMotion,

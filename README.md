@@ -38,7 +38,6 @@ A web-based Live2D avatar with real-time interaction — tap, drag, and chat wit
 - **Touch interaction** — Tap, flick, and drag the avatar for contextual reactions
 - **Drag physics** — Drag to move head/body; hair and accessories sway with momentum
 - **20 expression presets** — Layered expression blending on top of motion playback
-- **Camera face tracking** — Avatar mirrors your head and eye movement via webcam
 - **Idle eye animation** — Procedural gaze with natural saccade patterns
 - **Chat UI** — KakaoTalk-style chat rendered behind the character
 - **Swappable characters** — Plug in different Live2D models via a simple interface

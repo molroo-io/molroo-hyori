@@ -2,10 +2,8 @@
  * Gaze tracking utilities for Live2D.
  *
  * - Mouse tracking: normalizes cursor position to -1..1 range
- * - Gaze resolution: priority chain (camera > mouse > saccade)
+ * - Gaze resolution: mouse > saccade
  */
-
-import type { CameraGaze } from '../face-tracking/jeeliz-adapter'
 
 export interface ResolvedGaze {
   x: number
@@ -13,16 +11,12 @@ export interface ResolvedGaze {
 }
 
 /**
- * Resolve gaze from multiple sources with priority: camera > mouse.
+ * Resolve gaze from mouse input.
  * Returns null if no source is active (fall through to saccade).
  */
 export function resolveGaze(
-  cameraGaze: CameraGaze | null,
   mouseGaze: { x: number; y: number } | null,
 ): ResolvedGaze | null {
-  if (cameraGaze) {
-    return { x: cameraGaze.eyeX, y: cameraGaze.eyeY }
-  }
   if (mouseGaze) {
     return { x: mouseGaze.x, y: -mouseGaze.y }
   }

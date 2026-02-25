@@ -11,8 +11,7 @@ interface Live2DViewerProps {
 
 export function Live2DViewer({ character, onReady, onActiveMotionChange }: Live2DViewerProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const jeelizCanvasRef = useRef<HTMLCanvasElement>(null)
-  const controller = useLive2D(canvasRef, character, jeelizCanvasRef)
+  const controller = useLive2D(canvasRef, character)
   const notifiedRef = useRef(false)
 
   useEffect(() => {
@@ -31,13 +30,6 @@ export function Live2DViewer({ character, onReady, onActiveMotionChange }: Live2
       <canvas
         ref={canvasRef}
         className="w-full h-full block"
-      />
-      {/* Hidden canvas for Jeeliz FaceFilter WebGL processing */}
-      <canvas
-        ref={jeelizCanvasRef}
-        width={320}
-        height={240}
-        style={{ position: 'fixed', top: 0, left: 0, opacity: 0, pointerEvents: 'none', zIndex: -1 }}
       />
       {!controller.isLoaded && (
         <div

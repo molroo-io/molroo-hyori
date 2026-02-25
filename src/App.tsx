@@ -142,7 +142,6 @@ export default function App() {
           character={hyoriCharacter}
           onReady={(ctrl) => {
             setController(ctrl)
-            ctrl.setCameraTracking(true)
           }}
           onActiveMotionChange={setActiveMotion}
         />
