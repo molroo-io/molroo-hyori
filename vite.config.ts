@@ -53,6 +53,7 @@ export default defineConfig(({ command }) => ({
   },
   optimizeDeps: {
     include: ['@molroo-ai/sdk', '@molroo-ai/adapter-llm'],
+    exclude: ['fetch-blob', 'node-fetch', 'formdata-polyfill'],
   },
   build: {
     commonjsOptions: {
