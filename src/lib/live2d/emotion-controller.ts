@@ -7,7 +7,7 @@
  * 3. emotion intensity + body_budget → weight modulation
  */
 
-import type { AgentResponse } from '@molroo-ai/sdk'
+import type { AgentResponse } from '@molroo-io/sdk'
 import type { Live2DController } from '../../hooks/useLive2D'
 import { vadToExpression } from './vad-expression'
 

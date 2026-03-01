@@ -8,7 +8,7 @@
 import { createOpenAI } from '@ai-sdk/openai'
 import { createAnthropic } from '@ai-sdk/anthropic'
 import { generateText, generateObject, jsonSchema } from 'ai'
-import type { LLMAdapter, GenerateTextOptions, GenerateObjectOptions } from '@molroo-ai/sdk'
+import type { LLMAdapter, GenerateTextOptions, GenerateObjectOptions } from '@molroo-io/sdk'
 import type { ZodType } from 'zod'
 import { getProvider } from './providers'
 

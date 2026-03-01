@@ -5,7 +5,7 @@
  * HYORI_CONFIG is the SDK-compatible persona config for API creation.
  * HYORI_CONSUMER_SUFFIX is extra context injected into the LLM prompt.
  */
-import type { PersonaConfigData } from '@molroo-ai/sdk'
+import type { PersonaConfigData } from '@molroo-io/sdk'
 import characterMd from './character.md?raw'
 
 /** Raw character description — fed to LLM with the persona guide */

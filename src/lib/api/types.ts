@@ -1,6 +1,6 @@
 /**
  * Re-export SDK types used throughout the app.
- * Source of truth: @molroo-ai/sdk
+ * Source of truth: @molroo-io/sdk
  */
 export type {
   AgentResponse,
@@ -12,4 +12,4 @@ export type {
   Identity,
   PersonalityTraits,
   Goal,
-} from '@molroo-ai/sdk'
+} from '@molroo-io/sdk'

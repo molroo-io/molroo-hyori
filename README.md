@@ -10,7 +10,7 @@
 
 <p align="center">
   <strong>Interactive Live2D Avatar Demo</strong><br/>
-  <sub>Technical showcase for the <a href="https://github.com/molroo-ai">molroo</a> emotion engine</sub>
+  <sub>Technical showcase for the <a href="https://github.com/molroo-io">molroo</a> emotion engine</sub>
 </p>
 
 <p align="center">
@@ -20,7 +20,7 @@
 </p>
 
 <p align="center">
-  <a href="https://molroo-ai.github.io/molroo-hyori/"><strong>Live Demo</strong></a>
+  <a href="https://molroo-io.github.io/molroo-hyori/"><strong>Live Demo</strong></a>
 </p>
 
 ---
@@ -50,7 +50,7 @@ A web-based Live2D avatar with real-time interaction — tap, drag, and chat wit
 ## Quick Start
 
 ```bash
-git clone https://github.com/molroo-ai/molroo-hyori.git
+git clone https://github.com/molroo-io/molroo-hyori.git
 cd molroo-hyori
 npm install
 npm run dev
@@ -58,7 +58,7 @@ npm run dev
 
 > **Note:** The Live2D model file is not included in the repo. Download [Hiyori (hiyori_pro_zh)](https://www.live2d.com/en/learn/sample/) from Live2D's official sample page and place it at `public/models/hiyori_pro_zh.zip`.
 
-Requires molroo persona API running locally (`cd molroo-ai/api/persona && npx wrangler dev`).
+Requires molroo persona API running locally (`cd molroo-io/api/persona && npx wrangler dev`).
 
 ## URL Parameters
 

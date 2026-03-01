@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useMemo } from 'react'
-import { MolrooPersona } from '@molroo-ai/sdk'
-import type { PersonaChatResult, PersonaState, AgentResponse } from '@molroo-ai/sdk'
+import { MolrooPersona } from '@molroo-io/sdk'
+import type { PersonaChatResult, PersonaState, AgentResponse } from '@molroo-io/sdk'
 import { createBrowserAdapter } from '../lib/llm/adapter'
 import type { LlmConfig } from '../lib/llm/adapter'
 import { getProvider } from '../lib/llm/providers'

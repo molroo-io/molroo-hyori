@@ -26,7 +26,7 @@ jobs:
           node-version: 20
           cache: npm
           registry-url: https://npm.pkg.github.com
-          scope: '@molroo-ai'
+          scope: '@molroo-io'
 
       - run: npm ci
         env:

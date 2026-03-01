@@ -49,14 +49,14 @@ export default defineConfig(({ command }) => ({
     alias: {
       '@': path.resolve(__dirname, './src'),
     },
-    dedupe: ['@molroo-ai/sdk', '@molroo-ai/adapter-llm'],
+    dedupe: ['@molroo-io/sdk', '@molroo-io/adapter-llm'],
   },
   optimizeDeps: {
     exclude: ['zod', 'fetch-blob', 'node-fetch', 'formdata-polyfill'],
   },
   build: {
     commonjsOptions: {
-      include: [/molroo-ai/, /node_modules/],
+      include: [/molroo-io/, /node_modules/],
     },
   },
 }))
