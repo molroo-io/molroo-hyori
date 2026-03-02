@@ -7,20 +7,11 @@ import { ChatPanel } from './components/ChatPanel'
 import { GuideOverlay } from './components/GuideOverlay'
 import { DevPanel } from './components/dev/DevPanel'
 import { useSession } from './hooks/useSession'
-import { applyEmotionToLive2D } from './lib/live2d/emotion-controller'
-import { getProvider } from './lib/llm/providers'
-import type { Live2DController, ActiveMotion } from './hooks/useLive2D'
 import type { LlmConfig } from './hooks/useSession'
+import { applyEmotionToLive2D } from './lib/live2d/emotion-controller'
+import type { Live2DController, ActiveMotion } from './hooks/useLive2D'
 import type { AgentResponse } from './lib/api/types'
 import './App.css'
-
-function isLlmReady(config: LlmConfig): boolean {
-  if (config.provider === 'none') return false
-  const prov = getProvider(config.provider)
-  if (!prov) return false
-  if (prov.apiKeyRequired && !config.apiKey) return false
-  return true
-}
 
 const EMOTION_SYMBOLS: Record<string, string> = {
   joy: '♪',
@@ -54,7 +45,7 @@ export default function App() {
   const prevEmotionRef = useRef<string | null>(null)
 
   const {
-    session, molrooApiKey, setMolrooApiKey,
+    session,
     llmConfig, setLlmConfig,
     turnHistory, currentState, isProcessing,
     createSession, resumeSession, sendMessage, reset,
@@ -75,7 +66,6 @@ export default function App() {
 
     const config: LlmConfig | null = provider ? {
       provider,
-      apiKey: params.get('apiKey') ?? params.get('key') ?? '',
       model: params.get('model') ?? undefined,
       baseUrl: params.get('baseUrl') ?? undefined,
     } : null
@@ -90,9 +80,6 @@ export default function App() {
         .catch((e: unknown) => console.error('[AutoSession] failed:', e))
     }
 
-    // Remove API key from URL immediately for security
-    params.delete('apiKey')
-    params.delete('key')
     const clean = params.toString()
     window.history.replaceState({}, '', clean ? `?${clean}` : window.location.pathname)
   }, [setLlmConfig, createSession, resumeSession])
@@ -104,20 +91,16 @@ export default function App() {
     if (params.get('personaId') === session.personaId) return
     params.set('personaId', session.personaId)
     params.delete('sessionId') // Remove legacy param
-    params.delete('apiKey')
-    params.delete('key')
     window.history.replaceState({}, '', `?${params.toString()}`)
   }, [session.status, session.personaId])
 
-  const llmReady = isLlmReady(llmConfig)
+  const llmReady = llmConfig.provider !== 'none'
 
   useEffect(() => {
     if (session.status === 'idle' && !guideVisible) {
       setDevOpen(true)
-    } else if (session.status === 'active' && !isLlmReady(llmConfig)) {
-      setDevOpen(true)
     }
-  }, [session.status, llmConfig, guideVisible])
+  }, [session.status, guideVisible])
 
   function handleTurnResponse(response: AgentResponse) {
     if (!controller) return
@@ -173,10 +156,6 @@ export default function App() {
       <div className={`dev-column ${devOpen ? '' : 'dev-column--hidden'}`}>
         <DevPanel
           session={session}
-          molrooApiKey={molrooApiKey}
-          onMolrooApiKeyChange={setMolrooApiKey}
-          llmConfig={llmConfig}
-          onLlmConfigChange={setLlmConfig}
           currentState={currentState}
           turnHistory={turnHistory}
           isProcessing={isProcessing}

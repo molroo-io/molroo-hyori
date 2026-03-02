@@ -2,24 +2,16 @@ import path from 'path'
 import { defineConfig, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
-import { nodePolyfills } from 'vite-plugin-node-polyfills'
 
 /**
- * Stub out heavy server-only packages that are never used in browser.
- * adapter-llm depends on @ai-sdk/google-vertex → google-auth-library → node-fetch,
- * which pulls in Node stream/crypto/fs. The demo only uses openai/anthropic providers.
+ * Stub out packages that are dynamically imported by @molroo-io/sdk
+ * but never used at runtime (we provide our own LLMAdapter via proxy).
  */
-function excludeServerPackages(): Plugin {
-  const VIRTUAL = '\0server-stub:'
-  const PACKAGES = [
-    '@ai-sdk/google-vertex',
-    'google-auth-library',
-    'node-fetch',
-    'fetch-blob',
-    'formdata-polyfill',
-  ]
+function stubUnusedPackages(): Plugin {
+  const VIRTUAL = '\0stub:'
+  const PACKAGES = ['node:crypto']
   return {
-    name: 'exclude-server-packages',
+    name: 'stub-unused-packages',
     enforce: 'pre',
     resolveId(source) {
       if (PACKAGES.some(pkg => source === pkg || source.startsWith(pkg + '/'))) {
@@ -29,34 +21,35 @@ function excludeServerPackages(): Plugin {
     },
     load(id) {
       if (!id.startsWith(VIRTUAL)) return null
-      return 'export default {}; export const createVertex = () => { throw new Error("google-vertex not available in browser") };'
+      return 'export default {}; export const createHmac = () => { throw new Error("not available in browser") };'
     },
   }
 }
 
-export default defineConfig(({ command }) => ({
+export default defineConfig({
   plugins: [
-    excludeServerPackages(),
-    nodePolyfills({
-      include: ['crypto', 'stream', 'buffer', 'util', 'events', 'path', 'os', 'fs', 'querystring', 'http', 'https', 'url', 'process'],
-      globals: { Buffer: true, process: true },
-    }),
+    stubUnusedPackages(),
     react(),
     tailwindcss(),
   ],
-  base: command === 'serve' ? '/' : '/molroo-hyori/',
+  base: '/',
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
     },
-    dedupe: ['@molroo-io/sdk', '@molroo-io/adapter-llm'],
-  },
-  optimizeDeps: {
-    exclude: ['zod', 'fetch-blob', 'node-fetch', 'formdata-polyfill'],
+    dedupe: ['@molroo-io/sdk'],
   },
   build: {
     commonjsOptions: {
       include: [/molroo-io/, /node_modules/],
     },
   },
-}))
+  server: {
+    proxy: {
+      '/api/llm': {
+        target: 'http://localhost:8788',
+        changeOrigin: true,
+      },
+    },
+  },
+})

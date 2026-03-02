@@ -3,7 +3,6 @@ import { MolrooPersona } from '@molroo-io/sdk'
 import type { PersonaChatResult, PersonaState, AgentResponse } from '@molroo-io/sdk'
 import { createBrowserAdapter } from '../lib/llm/adapter'
 import type { LlmConfig } from '../lib/llm/adapter'
-import { getProvider } from '../lib/llm/providers'
 import { HYORI_CONFIG, HYORI_CONSUMER_SUFFIX } from '../characters/hyori/persona'
 
 export type { LlmConfig } from '../lib/llm/adapter'
@@ -33,7 +32,6 @@ const DEFAULT_API_KEY = import.meta.env.VITE_MOLROO_API_KEY ?? 'mk_live_fb3db843
 const LS_KEY = 'molroo-llm-config'
 
 const DEFAULT_LLM_PROVIDER = import.meta.env.VITE_LLM_PROVIDER ?? 'none'
-const DEFAULT_LLM_API_KEY = import.meta.env.VITE_LLM_API_KEY ?? ''
 const DEFAULT_LLM_MODEL = import.meta.env.VITE_LLM_MODEL ?? ''
 
 function loadLlmConfig(): LlmConfig {
@@ -43,18 +41,16 @@ function loadLlmConfig(): LlmConfig {
       const saved = JSON.parse(raw) as Partial<LlmConfig>
       return {
         provider: saved.provider ?? DEFAULT_LLM_PROVIDER,
-        apiKey: DEFAULT_LLM_API_KEY,
         model: saved.model ?? DEFAULT_LLM_MODEL,
         baseUrl: saved.baseUrl,
       }
     }
   } catch { /* ignore */ }
-  return { provider: DEFAULT_LLM_PROVIDER, apiKey: DEFAULT_LLM_API_KEY, model: DEFAULT_LLM_MODEL }
+  return { provider: DEFAULT_LLM_PROVIDER, model: DEFAULT_LLM_MODEL }
 }
 
 function saveLlmConfig(config: LlmConfig) {
-  const { apiKey: _, ...rest } = config
-  localStorage.setItem(LS_KEY, JSON.stringify(rest))
+  localStorage.setItem(LS_KEY, JSON.stringify(config))
 }
 
 export function useSession() {
@@ -151,7 +147,7 @@ export function useSession() {
 
       let chatResult: PersonaChatResult
 
-      if (llmConfig.provider !== 'none' && llmConfig.apiKey) {
+      if (llmConfig.provider !== 'none') {
         chatResult = await currentPersona.chat(message, {
           history,
           consumerSuffix: HYORI_CONSUMER_SUFFIX,

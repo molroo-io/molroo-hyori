@@ -1,4 +1,4 @@
-import type { SessionState, TurnEntry, LlmConfig } from '../../hooks/useSession'
+import type { SessionState, TurnEntry } from '../../hooks/useSession'
 import type { PersonaState } from '../../lib/api/types'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs'
 import { Button } from '../ui/button'
@@ -10,10 +10,6 @@ import { TimelineTab } from './TimelineTab'
 
 interface DevPanelProps {
   session: SessionState
-  molrooApiKey: string
-  onMolrooApiKeyChange: (key: string) => void
-  llmConfig: LlmConfig
-  onLlmConfigChange: (config: LlmConfig) => void
   currentState: PersonaState | null
   turnHistory: TurnEntry[]
   isProcessing: boolean
@@ -24,8 +20,7 @@ interface DevPanelProps {
 }
 
 export function DevPanel({
-  session, molrooApiKey, onMolrooApiKeyChange,
-  llmConfig, onLlmConfigChange,
+  session,
   currentState, turnHistory, isProcessing,
   characterName, characterMd,
   onCreateSession, onReset,
@@ -59,10 +54,6 @@ export function DevPanel({
             <SetupTab
               session={session}
               isProcessing={isProcessing}
-              molrooApiKey={molrooApiKey}
-              onMolrooApiKeyChange={onMolrooApiKeyChange}
-              llmConfig={llmConfig}
-              onLlmConfigChange={onLlmConfigChange}
               characterName={characterName}
               characterMd={characterMd}
               onCreateSession={onCreateSession}
