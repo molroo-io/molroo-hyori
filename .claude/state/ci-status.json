@@ -1,6 +1,6 @@
 {
-  "timestamp": "2026-03-02T02:44:34Z",
-  "trigger_command": "cd /Users/yijiro/workspace/molroo-workspace/demos/hyori && git add -A && git commit -m \"$(cat <<'EOF'\\nfix: upgrade SDK to 0.4.1 with dynamic provider imports\\n\\nEliminates google-vertex/google-auth-library from bundle.\\nBundle size reduced ~400KB. Process polyfill in index.html\\ncovers remaining React dev mode references.\\n\\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>\\nEOF\\n)\" && git push origin main 2>&1",
+  "timestamp": "2026-03-02T02:45:25Z",
+  "trigger_command": "rm .github/workflows/deploy.yml && rmdir .github/workflows && rmdir .github 2>/dev/null; git add -A && git commit -m \"$(cat <<'EOF'\\nchore: remove GitHub Actions deploy workflow\\n\\nDeployments handled via wrangler pages deploy locally.\\nAPI keys proxied through CF Functions, no need for CI secrets.\\n\\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>\\nEOF\\n)\" && git push origin main 2>&1",
   "status": "completed",
   "conclusion": "success"
 }

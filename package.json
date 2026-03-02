@@ -45,6 +45,7 @@
     "wrangler": "^4.0.0"
   },
   "overrides": {
-    "zod": "^4.3.6"
+    "zod": "^4.3.6",
+    "@ai-sdk/google-vertex": "npm:empty-npm-package@1.0.0"
   }
 }
