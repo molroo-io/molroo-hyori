@@ -27,7 +27,7 @@ const INITIAL_SESSION: SessionState = {
 }
 
 const DEFAULT_API_URL = import.meta.env.VITE_MOLROO_API_URL ?? 'https://api.molroo.io'
-const DEFAULT_API_KEY = import.meta.env.VITE_MOLROO_API_KEY ?? 'mk_live_fb3db843e38c15ec530b0b95337608b7'
+const DEFAULT_API_KEY = import.meta.env.VITE_MOLROO_API_KEY ?? ''
 
 const LS_KEY = 'molroo-llm-config'
 
@@ -80,15 +80,12 @@ export function useSession() {
     setSession({ status: 'creating', personaId: null, error: null })
     try {
       const llm = createBrowserAdapter(llmConfig)
-      // Separate instance for engine appraisal (split mode requires different refs)
-      const engineLlm = createBrowserAdapter(llmConfig)
 
       console.log('[Session] Creating persona with SDK...')
       const persona = await MolrooPersona.create(
         {
           ...apiConfig,
           llm: llm ?? undefined,
-          engineLlm: engineLlm ?? undefined,
         },
         HYORI_CONFIG,
       )
@@ -127,13 +124,10 @@ export function useSession() {
       // Rebuild LLM adapter in case config changed since session creation
       const llm = createBrowserAdapter(llmConfig)
       if (llm) {
-        const engineLlm = createBrowserAdapter(llmConfig)
-        // Re-create persona instance with updated LLM (SDK constructor is cheap)
         const newPersona = new MolrooPersona({
           ...apiConfig,
           personaId: persona.id,
           llm,
-          engineLlm: engineLlm ?? undefined,
         })
         personaRef.current = newPersona
       }
@@ -205,12 +199,10 @@ export function useSession() {
     setSession({ status: 'creating', personaId: null, error: null })
     try {
       const llm = createBrowserAdapter(llmConfig)
-      const engineLlm = createBrowserAdapter(llmConfig)
       const persona = await MolrooPersona.connect(
         {
           ...apiConfig,
           llm: llm ?? undefined,
-          engineLlm: engineLlm ?? undefined,
         },
         personaId,
       )
