@@ -9,7 +9,7 @@ import tailwindcss from '@tailwindcss/vite'
  */
 function stubUnusedPackages(): Plugin {
   const VIRTUAL = '\0stub:'
-  const PACKAGES = ['node:crypto']
+  const PACKAGES = ['node:crypto', 'node-fetch']
   return {
     name: 'stub-unused-packages',
     enforce: 'pre',
