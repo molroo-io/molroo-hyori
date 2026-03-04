@@ -1,11 +1,14 @@
 import { useState, useCallback, useRef, useMemo } from 'react'
-import { MolrooPersona } from '@molroo-io/sdk'
-import type { PersonaChatResult, PersonaState, AgentResponse } from '@molroo-io/sdk'
+import { Molroo } from '@molroo-io/sdk'
+import type { PersonaChatResult, PersonaState } from '@molroo-io/sdk'
 import { createBrowserAdapter } from '../lib/llm/adapter'
 import type { LlmConfig } from '../lib/llm/adapter'
 import { HYORI_CONFIG, HYORI_CONSUMER_SUFFIX } from '../characters/hyori/persona'
 
 export type { LlmConfig } from '../lib/llm/adapter'
+
+/** Inferred persona instance type from the Molroo class. */
+type PersonaInstance = Awaited<ReturnType<Molroo['connectPersona']>>
 
 export interface SessionState {
   status: 'idle' | 'creating' | 'active' | 'error'
@@ -61,14 +64,14 @@ export function useSession() {
   const [currentState, setCurrentState] = useState<PersonaState | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
   const turnIdRef = useRef(0)
-  const personaRef = useRef<MolrooPersona | null>(null)
+  const personaRef = useRef<PersonaInstance | null>(null)
 
   const setLlmConfig = useCallback((config: LlmConfig) => {
     setLlmConfigState(config)
     saveLlmConfig(config)
   }, [])
 
-  const apiConfig = useMemo(() => ({
+  const molroo = useMemo(() => new Molroo({
     baseUrl: DEFAULT_API_URL,
     apiKey: molrooApiKey,
   }), [molrooApiKey])
@@ -82,12 +85,9 @@ export function useSession() {
       const llm = createBrowserAdapter(llmConfig)
 
       console.log('[Session] Creating persona with SDK...')
-      const persona = await MolrooPersona.create(
-        {
-          ...apiConfig,
-          llm: llm ?? undefined,
-        },
+      const persona = await molroo.createPersona(
         HYORI_CONFIG,
+        { llm: llm ?? undefined },
       )
       console.log('[Session] created:', persona.id)
 
@@ -107,7 +107,7 @@ export function useSession() {
       const msg = err instanceof Error ? err.message : 'Failed to create session'
       setSession(prev => ({ ...prev, status: 'error', error: msg }))
     }
-  }, [apiConfig, llmConfig])
+  }, [molroo, llmConfig])
 
   /**
    * Send a message via SDK chat() — handles LLM generation + emotion processing.
@@ -119,20 +119,14 @@ export function useSession() {
     if (session.status !== 'active' || !personaRef.current || isProcessing) return null
     setIsProcessing(true)
     try {
-      const persona = personaRef.current
+      let currentPersona = personaRef.current
 
-      // Rebuild LLM adapter in case config changed since session creation
+      // Rebuild persona in case LLM config changed since session creation
       const llm = createBrowserAdapter(llmConfig)
       if (llm) {
-        const newPersona = new MolrooPersona({
-          ...apiConfig,
-          personaId: persona.id,
-          llm,
-        })
-        personaRef.current = newPersona
+        currentPersona = await molroo.connectPersona(currentPersona.id, { llm })
+        personaRef.current = currentPersona
       }
-
-      const currentPersona = personaRef.current
 
       const history = turnHistory.flatMap(t => [
         { role: 'user' as const, content: t.userMessage },
@@ -158,6 +152,11 @@ export function useSession() {
         chatResult = {
           text: response.text ?? message,
           response,
+          updatedHistory: [
+            ...history,
+            { role: 'user' as const, content: message },
+            { role: 'assistant' as const, content: response.text ?? message },
+          ],
         }
       }
 
@@ -193,18 +192,15 @@ export function useSession() {
     } finally {
       setIsProcessing(false)
     }
-  }, [session.status, isProcessing, llmConfig, apiConfig, turnHistory])
+  }, [session.status, isProcessing, llmConfig, molroo, turnHistory])
 
   const resumeSession = useCallback(async (personaId: string) => {
     setSession({ status: 'creating', personaId: null, error: null })
     try {
       const llm = createBrowserAdapter(llmConfig)
-      const persona = await MolrooPersona.connect(
-        {
-          ...apiConfig,
-          llm: llm ?? undefined,
-        },
+      const persona = await molroo.connectPersona(
         personaId,
+        { llm: llm ?? undefined },
       )
 
       personaRef.current = persona
@@ -218,7 +214,7 @@ export function useSession() {
       const msg = err instanceof Error ? err.message : 'Session not found'
       setSession(prev => ({ ...prev, status: 'error', error: msg }))
     }
-  }, [apiConfig, llmConfig])
+  }, [molroo, llmConfig])
 
   const reset = useCallback(() => {
     personaRef.current = null
