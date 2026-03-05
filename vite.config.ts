@@ -40,8 +40,18 @@ export default defineConfig({
     dedupe: ['@molroo-io/sdk'],
   },
   build: {
+    target: 'esnext',
     commonjsOptions: {
       include: [/molroo-io/, /node_modules/],
+    },
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'graphics': ['pixi.js', '@pixi/app', '@pixi/core', '@pixi/extensions', '@pixi/ticker', 'pixi-live2d-display/cubism4'],
+          'ai-sdk': ['ai', '@ai-sdk/openai', '@ai-sdk/anthropic'],
+          'react-vendor': ['react', 'react-dom'],
+        },
+      },
     },
   },
   server: {

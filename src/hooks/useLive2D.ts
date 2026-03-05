@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useMemo } from 'react'
 import type { InternalModel } from 'pixi-live2d-display/cubism4'
 import { Live2DFactory, Live2DModel } from 'pixi-live2d-display/cubism4'
 
@@ -283,11 +283,14 @@ export function useLive2D(
     }
   }, [character.modelUrl])
 
-  return {
+  const characterRef = useRef(character)
+  characterRef.current = character
+
+  return useMemo<Live2DController>(() => ({
     setExpression(name: string, weight = 1) {
       const ctrl = controllerRef.current
       if (!ctrl) return
-      const expr = character.expressions[name]
+      const expr = characterRef.current.expressions[name]
 
       if (name === 'normal' || name === 'neutral' || !expr) {
         ctrl.targetExpressionWeight = 0
@@ -374,5 +377,5 @@ export function useLive2D(
     isLoaded,
     motionGroups,
     activeMotion,
-  }
+  }), [isLoaded, motionGroups, activeMotion])
 }

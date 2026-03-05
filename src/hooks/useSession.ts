@@ -66,6 +66,18 @@ export function useSession() {
   const turnIdRef = useRef(0)
   const personaRef = useRef<PersonaInstance | null>(null)
 
+  // Refs for stable sendMessage callback
+  const turnHistoryRef = useRef(turnHistory)
+  turnHistoryRef.current = turnHistory
+  const isProcessingRef = useRef(isProcessing)
+  isProcessingRef.current = isProcessing
+  const llmConfigRef = useRef(llmConfig)
+  llmConfigRef.current = llmConfig
+  const sessionRef = useRef(session)
+  sessionRef.current = session
+  // Track which llmConfig the persona was last connected with
+  const connectedLlmConfigRef = useRef<LlmConfig | null>(null)
+
   const setLlmConfig = useCallback((config: LlmConfig) => {
     setLlmConfigState(config)
     saveLlmConfig(config)
@@ -82,7 +94,8 @@ export function useSession() {
   const createSession = useCallback(async () => {
     setSession({ status: 'creating', personaId: null, error: null })
     try {
-      const llm = createBrowserAdapter(llmConfig)
+      const cfg = llmConfigRef.current
+      const llm = createBrowserAdapter(cfg)
 
       console.log('[Session] Creating persona with SDK...')
       const persona = await molroo.createPersona(
@@ -92,6 +105,7 @@ export function useSession() {
       console.log('[Session] created:', persona.id)
 
       personaRef.current = persona
+      connectedLlmConfigRef.current = cfg
       setSession({ status: 'active', personaId: persona.id, error: null })
       setTurnHistory([])
       turnIdRef.current = 0
@@ -107,35 +121,41 @@ export function useSession() {
       const msg = err instanceof Error ? err.message : 'Failed to create session'
       setSession(prev => ({ ...prev, status: 'error', error: msg }))
     }
-  }, [molroo, llmConfig])
+  }, [molroo])
 
   /**
    * Send a message via SDK chat() — handles LLM generation + emotion processing.
+   * Uses refs for turnHistory/isProcessing/llmConfig to keep callback reference stable.
    */
   const sendMessage = useCallback(async (message: string): Promise<{
     result: PersonaChatResult
     displayText: string
   } | { error: string } | null> => {
-    if (session.status !== 'active' || !personaRef.current || isProcessing) return null
+    if (sessionRef.current.status !== 'active' || !personaRef.current || isProcessingRef.current) return null
     setIsProcessing(true)
     try {
       let currentPersona = personaRef.current
+      const cfg = llmConfigRef.current
 
-      // Rebuild persona in case LLM config changed since session creation
-      const llm = createBrowserAdapter(llmConfig)
-      if (llm) {
-        currentPersona = await molroo.connectPersona(currentPersona.id, { llm })
-        personaRef.current = currentPersona
+      // Only reconnect persona if LLM config actually changed
+      const prevCfg = connectedLlmConfigRef.current
+      if (prevCfg && (prevCfg.provider !== cfg.provider || prevCfg.model !== cfg.model || prevCfg.baseUrl !== cfg.baseUrl)) {
+        const llm = createBrowserAdapter(cfg)
+        if (llm) {
+          currentPersona = await molroo.connectPersona(currentPersona.id, { llm })
+          personaRef.current = currentPersona
+          connectedLlmConfigRef.current = cfg
+        }
       }
 
-      const history = turnHistory.flatMap(t => [
+      const history = turnHistoryRef.current.flatMap(t => [
         { role: 'user' as const, content: t.userMessage },
         { role: 'assistant' as const, content: t.result.text },
       ])
 
       let chatResult: PersonaChatResult
 
-      if (llmConfig.provider !== 'none') {
+      if (cfg.provider !== 'none') {
         chatResult = await currentPersona.chat(message, {
           history,
           consumerSuffix: HYORI_CONSUMER_SUFFIX,
@@ -172,7 +192,6 @@ export function useSession() {
       if (chatResult.state) {
         setCurrentState(chatResult.state)
       } else {
-        // Derive minimal state from response
         setCurrentState(prev => prev ? {
           ...prev,
           emotion: chatResult.response.emotion,
@@ -192,18 +211,20 @@ export function useSession() {
     } finally {
       setIsProcessing(false)
     }
-  }, [session.status, isProcessing, llmConfig, molroo, turnHistory])
+  }, [molroo])
 
   const resumeSession = useCallback(async (personaId: string) => {
     setSession({ status: 'creating', personaId: null, error: null })
     try {
-      const llm = createBrowserAdapter(llmConfig)
+      const cfg = llmConfigRef.current
+      const llm = createBrowserAdapter(cfg)
       const persona = await molroo.connectPersona(
         personaId,
         { llm: llm ?? undefined },
       )
 
       personaRef.current = persona
+      connectedLlmConfigRef.current = cfg
       setSession({ status: 'active', personaId, error: null })
       setTurnHistory([])
       turnIdRef.current = 0
@@ -214,10 +235,11 @@ export function useSession() {
       const msg = err instanceof Error ? err.message : 'Session not found'
       setSession(prev => ({ ...prev, status: 'error', error: msg }))
     }
-  }, [molroo, llmConfig])
+  }, [molroo])
 
   const reset = useCallback(() => {
     personaRef.current = null
+    connectedLlmConfigRef.current = null
     setSession(INITIAL_SESSION)
     setTurnHistory([])
     setCurrentState(null)

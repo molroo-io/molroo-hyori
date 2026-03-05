@@ -104,7 +104,7 @@ export default function App() {
 
   function handleTurnResponse(response: AgentResponse) {
     if (!controller) return
-    applyEmotionToLive2D(controller, response)
+    applyEmotionToLive2D(controller, response, prevEmotionRef.current)
 
     // Show reaction bubble on emotion change
     const newEmotion = response.emotion.discrete.primary

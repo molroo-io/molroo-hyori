@@ -119,15 +119,16 @@ export function resolveExpression(
   return { expression: expressionName, weight, fatigueOverlay }
 }
 
-let prevEmotion: string | null = null
-
 /**
  * Apply an AgentResponse to a Live2D controller.
  * Call this after each SDK chat() to update the character's expression + trigger motion.
+ *
+ * @param prevEmotion - Previous primary emotion for change detection (caller tracks this)
  */
 export function applyEmotionToLive2D(
   controller: Live2DController,
   response: AgentResponse,
+  prevEmotion?: string | null,
 ): void {
   const { emotion } = response
   const primary = emotion.discrete.primary
@@ -150,5 +151,4 @@ export function applyEmotionToLive2D(
       controller.playMotion(motion.group, motion.index)
     }
   }
-  prevEmotion = primary
 }
