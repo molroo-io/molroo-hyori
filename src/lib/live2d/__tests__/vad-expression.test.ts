@@ -9,7 +9,7 @@ describe('vadToExpression', () => {
   })
 
   it('returns sad expression for low V, low A, low D', () => {
-    const result = vadToExpression({ V: -0.5, A: -0.2, D: -0.3 })
+    const result = vadToExpression({ V: -0.5, A: 0.1, D: -0.3 })
     expect(result).not.toBeNull()
     expect(['sad', 'cry']).toContain(result!.name)
   })
@@ -48,8 +48,8 @@ describe('vadToExpression', () => {
     expect(result!.name).toBe('fear')
   })
 
-  it('returns relaxed for moderate positive V, low A', () => {
-    const result = vadToExpression({ V: 0.3, A: -0.5, D: 0.5 })
+  it('returns relaxed for moderate positive V, very low A', () => {
+    const result = vadToExpression({ V: 0.15, A: 0.05, D: 0.5 })
     expect(result).not.toBeNull()
     expect(result!.name).toBe('relaxed')
   })

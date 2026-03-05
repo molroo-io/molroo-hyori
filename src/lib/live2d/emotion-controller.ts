@@ -13,13 +13,17 @@ import { vadToExpression } from './vad-expression'
 
 /**
  * molroo-core discrete emotion labels → Hyori expression names.
- * Core labels: joy, excitement, contentment, anger, fear, sadness,
- *              anxiety, surprise, disgust, trust, calm, shame, guilt, numbness
+ * Core labels (19): 8 positive, 7 negative, 4 neutral/mixed.
  */
 const DISCRETE_TO_EXPRESSION: Record<string, string> = {
   joy: 'cheerful',
   excitement: 'excited',
   contentment: 'smile',
+  love: 'blushing',
+  pride: 'smug',
+  gratitude: 'smile',
+  amusement: 'laugh',
+  relief: 'relaxed',
   anger: 'angry',
   fear: 'fear',
   sadness: 'sad',
@@ -53,6 +57,8 @@ function modulateByBudget(weight: number, bodyBudget: number): number {
 const EMOTION_TO_MOTION: Record<string, { group: string; index: number }> = {
   surprise: { group: 'Flick', index: 0 },
   excitement: { group: 'FlickUp', index: 0 },
+  love: { group: 'FlickUp', index: 0 },
+  amusement: { group: 'Flick', index: 0 },
   anger: { group: 'FlickDown', index: 0 },
   disgust: { group: 'FlickDown', index: 0 },
   fear: { group: 'FlickUp', index: 0 },

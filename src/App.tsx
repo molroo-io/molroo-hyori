@@ -15,19 +15,24 @@ import './App.css'
 
 const EMOTION_SYMBOLS: Record<string, string> = {
   joy: '♪',
+  excitement: '☆',
   contentment: '~',
+  love: '♥',
+  pride: '✧',
+  gratitude: '☺',
+  amusement: 'ㅋ',
+  relief: 'ε~',
+  anger: '#',
+  fear: '!!',
+  sadness: 'ㅠ',
+  anxiety: '...?',
+  disgust: ';;;',
+  shame: '///',
+  guilt: '...',
+  surprise: '?!',
   trust: '♡',
   calm: '―',
-  surprise: '?!',
-  excitement: '☆',
-  anger: '#',
-  disgust: ';;;',
-  fear: '!!',
-  anxiety: '...?',
-  sadness: 'ㅠ',
-  guilt: '...',
   numbness: '. . .',
-  shame: '///',
 }
 
 /** Any emotion change gets a symbol; unknown emotions default to '!' */
